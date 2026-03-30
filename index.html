@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ResumeIQ</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #0a0a0f;
+  color: white;
+  text-align: center;
+  padding: 40px;
+}
+
+textarea, input {
+  width: 80%;
+  margin: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+}
+
+button {
+  padding: 12px 20px;
+  background: purple;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.result {
+  margin-top: 30px;
+  text-align: left;
+  width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+  background: #111;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.tag {
+  display: inline-block;
+  background: #222;
+  padding: 5px 10px;
+  margin: 4px;
+  border-radius: 15px;
+  font-size: 12px;
+}
+
+.strong { color: #4ade80; }
+.avg { color: #facc15; }
+.weak { color: #f87171; }
+</style>
+</head>
+
+<body>
+
+<h1>ResumeIQ</h1>
+<p>Resume analysis using keyword matching + bullet quality scoring</p>
+
+<input type="file" id="fileInput"><br>
+
+<textarea id="jobDesc" placeholder="Paste Job Description"></textarea><br>
+
+<button onclick="analyze()">Analyze</button>
+
+<div class="result" id="output"></div>
+
+<script>
+let resumeText = "";
+
+// Read resume file
+document.getElementById("fileInput").addEventListener("change", function(e){
+  const reader = new FileReader();
+  reader.onload = function(event){
+    resumeText = event.target.result;
+  };
+  reader.readAsText(e.target.files[0]);
+});
+
+// Extract words
+function extractWords(text){
+  return text.toLowerCase().replace(/[^a-z0-9 ]/g,"").split(/\s+/);
+}
+
+// Bullet analysis
+function analyzeBullets(text){
+  const lines = text.split("\n");
+  let results = [];
+
+  lines.forEach(line => {
+    let score = 0;
+
+    if(/(developed|built|created|designed|implemented)/i.test(line)){
+      score++;
+    }
+
+    if(/\d/.test(line)){
+      score++;
+    }
+
+    if(line.length > 25){
+      score++;
+    }
+
+    let label = "Weak";
+    let className = "weak";
+
+    if(score === 3){
+      label = "Strong";
+      className = "strong";
+    }
+    else if(score === 2){
+      label = "Average";
+      className = "avg";
+    }
+
+    if(line.trim()){
+      results.push({
+        text: line.trim(),
+        label,
+        className
+      });
+    }
+  });
+
+  return results.slice(0,5);
+}
+
+// Main analysis
+function analyze(){
+  const job = document.getElementById("jobDesc").value;
+
+  if(!resumeText || !job){
+    alert("Upload resume and paste job description");
+    return;
+  }
+
+  const resumeWords = [...new Set(extractWords(resumeText))];
+  const jobWords = [...new Set(extractWords(job))];
+
+  let match = [];
+  let missing = [];
+
+  jobWords.forEach(word=>{
+    if(resumeWords.includes(word)) match.push(word);
+    else missing.push(word);
+  });
+
+  let score = Math.round((match.length / jobWords.length) * 100);
+
+  let summary = "";
+  if(score > 70){
+    summary = "Strong match with job role";
+  } else if(score > 40){
+    summary = "Moderate match, needs improvement";
+  } else {
+    summary = "Low match, resume needs significant improvement";
+  }
+
+  let bullets = analyzeBullets(resumeText);
+
+  document.getElementById("output").innerHTML = `
+    <h2>Score: ${score}%</h2>
+    <p><b>${summary}</b></p>
+
+    <h3>Matched Keywords:</h3>
+    ${match.slice(0,10).map(w => `<span class="tag">${w}</span>`).join("")}
+
+    <h3>Missing Keywords:</h3>
+    ${missing.slice(0,10).map(w => `<span class="tag">${w}</span>`).join("")}
+
+    <h3>Bullet Quality Analysis:</h3>
+    ${bullets.map(b => `<div class="${b.className}">${b.text} → ${b.label}</div>`).join("")}
+  `;
+}
+</script>
+
+</body>
+</html>
